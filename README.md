@@ -1,0 +1,1 @@
+Some simple code to scrape the UC Davis directory using the RCurl package. 
