@@ -1,0 +1,103 @@
+---
+title: "scraping"
+author: "Ellie White"
+date: "February 1, 2018"
+output: html_document
+---
+
+```{r data}
+names <- read.csv("inputdata/samplenames.csv", header=FALSE, stringsAsFactors=FALSE)
+
+library(RCurl)
+# for some reason this one doesn't work
+# u <- "http://directory.ucdavis.edu/PeopleSearch.htm" 
+
+# use this one!!!
+u <- "http://directory.ucdavis.edu/search/directory_results.shtml?"
+# go to the url above in firefox and open up webdeveloper -> Toggle tools
+# in Network, all look for status 200 (meaning it was successful). If Method is "Get" use getForms is Method is "Post" use postForms. 
+# in the Params, look for your input. Name value pairs of this will be sent to the function below
+
+# con = getCurlHandle(followlocation = TRUE, cookiejar = "", verbose = TRUE, useragent = "R")
+# tt = getURLContent(u, curl = con)
+txt <- getForm(u, filter= names[1,1]) 
+
+library(XML)
+doc <- htmlParse(txt, asText = TRUE)
+grep('Hannah', txt) # to see if it got anything from the search
+
+#------------------------------------BEGIN NOTES------------------------------------------
+# <div id="directory_results_wrapper"><table border="0" cellpadding="2" cellspacing="2" width="100%">
+# <tr valign="top">
+# <th width="15%" align="left">Name</th>
+# <td align="left"><b>Hannah Rachel Safford</b></td>
+# <td align="left">
+# <a href="https://listings.ucdavis.edu/listings/index.jpf?mothraid=01303159" title="Update this listing">Update this listing</a><img src="../local_resources/images/edit.gif" border="0" alt="Update this listing information ">
+# </td>
+# </tr>
+# <tr valign="top">
+# <th width="15%" bgcolor="#BCC5CF" align="left">E-mail: </th>
+# <td colspan="1" bgcolor="#EFE5BF" align="left"><a href="mailto:hrsafford@ucdavis.edu">hrsafford@ucdavis.edu</a></td>
+# <td colspan="1" bgcolor="#EFE5BF" align="left">
+# <img src="../local_resources/images/vcard.gif" border="0" alt="vCard: Add listing to your Address Book"><span class="vcard"><strong>vCard:</strong> <a class="vcard" href="/search/vcard.pl?id=01303159&amp;ucdlistingoid=0" title="Add listing to your Address Book">Add listing to your Address Book</a></span> <a href="http://directory.ucdavis.edu/PeopleSearch.htm#vcard"><img src="../local_resources/images/help.gif" border="0" alt="vCard Help" title="vCard Help"></a>
+# </td>
+# </tr>
+# <tr valign="top">
+# <th width="15%" bgcolor="#BCC5CF" align="left">Title</th>
+# <td colspan="2" bgcolor="#EFE5BF" align="left">STDT 4</td>
+# </tr>
+# <tr valign="top">
+# <th width="15%" bgcolor="#BCC5CF" align="left">Department</th>
+# <td colspan="2" bgcolor="#EFE5BF" align="left">INST OF TRANSPORTATION STUDIES</td>
+# </tr>
+# </table></div>
+#                             </div>
+#                         </div>
+#                         <!-- End center column -->
+# 
+#                         <!-- Optional right column -->
+# 
+#                         <!-- End optional right column -->
+#                     </div>
+#                     <!-- ********** End main content ********** -->
+
+node <- getNodeSet(doc,"//div[@id='directory_results_wrapper']//table/tr/td")
+sapply(node, xmlValue, simplify=TRUE)
+xmlSApply(node, xmlValue)
+
+# loc <- xpathSApply(doc, "//div[@class = 'location']", xmlValue)
+#--------------------------------------END NOTES------------------------------------------
+
+# define the get directory function from what you learned above
+getdir <- function(n){
+  txt <- getForm(u, filter= n)
+  doc <- htmlParse(txt, asText = TRUE)
+  node <- getNodeSet(doc,"//div[@id='directory_results_wrapper']//table/tr/td")
+  sapply(node, xmlValue, simplify = TRUE)
+}
+
+# apply th efunction above to each member of the list of names
+info <- lapply(names$V1, FUN=getdir)
+
+# put it in a dataframe so you can write it out, first initialize an empty data frame
+dat <- data.frame(matrix(NA, nrow=length(info), ncol=lapply(info, length)[[which.max(lapply(info, length))]]))
+
+# remove the empty lists
+info_collected <- info[which(lapply(info, length)!=0)]
+
+for(i in seq_along(info_collected)){
+  for(j in 1:(lapply(info_collected, length)[[which.max(lapply(info_collected, length))]])){
+    dat[i,j] <- info_collected[[i]][j]
+  }
+} 
+
+write.csv(dat, "outputdata/fullinfo.csv")
+
+# # now clean it up and add to the csv, I'm not doing it this way anymore
+# listy <- sapply(info, FUN=function(x){
+#   strsplit(x, split="Name|Update|E-mail:|Card:|Title|Department|Level|Major")
+#   })
+# listy
+```
+
+
